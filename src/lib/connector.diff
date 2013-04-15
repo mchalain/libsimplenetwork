@@ -1,0 +1,104 @@
+--- connector.c	2012-06-05 22:20:30.000000000 +0200
++++ cconnector.c	2012-06-05 22:17:37.000000000 +0200
+@@ -5,9 +5,9 @@
+ 	int m_type;
+ 	int m_protocol;
+ 	char m_address;
+-	void *m_services;
+-	int m_serviceid;
+-	int m_clientthreaded;
++	ServicesFactory *m_services;
++	Service *m_service;
++	ClientAdapter *m_adapter;
+ };
+ 
+ Connector *connector_new(ServicesFactory *factory, int serviceid)
+@@ -15,8 +15,8 @@
+ 	Connector *this = malloc(sizeof(Connector));
+ 	this->m_type = 0;
+ 	this->m_protocol = 0;
+-	this->m_port = serviceid;
+ 	this->m_address = NULL;
++	this->m_port = serviceid;
+ 	this->m_serviceid = serviceid;
+ 	this->m_services = factory;
+ 	this->m_clientthreaded = 0;
+@@ -35,6 +35,7 @@
+ 	shutdown(this->m_socket,SHUT_RDWR);
+ 	close(this->m_socket);
+ 
++	service_destroy(this->m_service);
+ 	free(this);
+ }
+ 
+@@ -119,18 +120,7 @@
+ ClientAdapter *connector_createclient(Connector *this)
+ {
+ 	ClientAdapter * client = NULL;
+-	int clientfd = 0;
+-	if (this->m_address)
+-	{
+-		if (ret = connect(fd, address, sizeof(struct sockaddr_in)) < 0)
+-		{
+-			log("error listen: %s\n", strerror(errno));
+-		}
+-		else
+-			clientfd = fd;
+-	}
+-	else
+-		clientfd = connector_accept(this);
++	int clientfd = connector_accept(this);
+ 	if (clientfd)
+ 	{
+ 		Service *service = servicesfactory_createservice(this->m_services, this->m_serviceid);
+@@ -150,7 +140,7 @@
+ 	return ret;
+ }
+ 
+-iint connector_createsrvsocket(Connector *this)
++int connector_createsrvsocket(Connector *this)
+ {
+ 	int value;
+ 	int ret;
+@@ -159,6 +149,8 @@
+ 	struct sockaddr_in address = {0};
+ 	int protocol;
+ 
++	if (this->m_address == NULL)
++		return -1;
+ 	address.sin_family = AF_INET;
+ 	address.sin_port = htons(this->m_port);
+ 	//~ address.sin_addr.s_addr = INADDR_ANY;
+@@ -193,11 +185,10 @@
+ 	{
+ 		log("error keep alive opt\n");
+ 	}
+-	else
+-	{
+-		this->m_socket = fd;
+-		log("new socket : %d\n", this->m_socket);
+-	}
++
++	this->m_socket = fd;
++
++	log("new socket : %d\n", this->m_socket);
+ 	return ret;
+ }
+ 
+@@ -213,11 +204,12 @@
+ 		else if ((strncmp(p_argv[i], "--service", 10) == 0) && (i+1 < p_argc))
+ 		{
+ 			int serviceid = servicesfactory_getserviceid(this->m_services, p_argv[++i]);
+-			Service *service = servicesfactory_createservice(this->m_services, serviceid);
+-			if ( service != NULL)
++			if ( this->m_service)
++				service_destroy(this->m_service);
++			this->m_service = servicesfactory_createservice(this->m_services, serviceid);
++			if ( this->m_service != NULL)
+ 			{
+-				service_getprotocol(service, &this->m_port, &this->m_type, &this->m_protocol);
+-				service_destroy(service);
++				service_getprotocol(this->m_service, &this->m_port, &this->m_type, &this->m_protocol);
+ 			}
+ 		}
+ 		else if ((strncmp(p_argv[i], "--protocol", 10) == 0) && (i+1 < p_argc))

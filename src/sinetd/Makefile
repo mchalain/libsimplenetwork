@@ -1,0 +1,97 @@
+STARGET=sinet
+SSRCS=server_main.c
+
+OBJDIR?=../obj
+TARGETDIR?=$(PWD)/$(ARCH)bin
+
+INCLUDEDIR?=$(NETWORKLIBPATH)/include
+CFLAGS=-g -Wall -I$(INCLUDEDIR)
+#LDFLAGS= -lefence -lpthread
+CFLAGS+=-DTARGET=\"$(TARGET)\"
+
+SERVICE_DIR=$(NETWORKLIBPATH)/lib
+SERVICE_TARGET=service_inet
+SERVICE_SLIB=lib$(SERVICE_TARGET).a
+SERVICE_DLIB=lib$(SERVICE_TARGET).so
+SERVICE_SRCS= service_inet.c
+
+SERVER_DIR=$(NETWORKLIBPATH)/lib
+SERVER_TARGET=server
+SERVER_SLIB=lib$(SERVER_TARGET).a
+SERVER_DLIB=lib$(SERVER_TARGET).so
+
+CLIENT_DIR=$(NETWORKLIBPATH)/lib
+CLIENT_TARGET=client
+CLIENT_SLIB=lib$(CLIENT_TARGET).a
+CLIENT_DLIB=lib$(CLIENT_TARGET).so
+
+ifneq ($(origin ARCH), undefined)
+	SERVER_DIR:=$(NETWORKLIBPATH)/$(ARCH)lib
+	CLIENT_DIR=$(NETWORKLIBPATH)/$(ARCH)lib
+endif
+
+SOBJS:=$(addprefix $(OBJDIR)/, $(patsubst  %.c,%.o, $(SSRCS)))
+COBJS:=$(addprefix $(OBJDIR)/, $(patsubst  %.c,%.o, $(CSRCS)))
+SERVICE_OBJS:=$(addprefix $(OBJDIR)/, $(patsubst  %.c,%.o, $(SERVICE_SRCS)))
+
+SERVICE_SLIB:=$(OBJDIR)/$(SERVICE_SLIB)
+SERVICE_DLIB:=$(SERVICE_DIR)/$(SERVICE_DLIB)
+
+SERVER_SLIB:=$(OBJDIR)/$(SERVER_SLIB)
+SERVER_DLIB:=$(SERVER_DIR)/$(SERVER_DLIB)
+
+CLIENT_SLIB:=$(OBJDIR)/$(CLIENT_SLIB)
+CLIENT_DLIB:=$(CLIENT_DIR)/$(CLIENT_DLIB)
+
+all: server client
+
+$(SOBJS) $(COBJS): |$(OBJDIR) $(TARGETDIR)
+
+$(OBJDIR) $(TARGETDIR):
+	mkdir $@
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+$(SERVICE_SLIB): $(SERVICE_OBJS)
+	$(AR) rcs $@ $^
+
+$(SERVICE_DLIB): $(SERVICE_OBJS)
+	$(LD) -shared -fPIC -o $@ $^
+
+$(SERVER_DLIB): $(SERVER_DIR)
+	$(MAKE) CFLAGS="$(CFLAGS)"  -C $^ $@
+
+$(SERVER_SLIB): $(SERVER_DIR)
+	$(MAKE) CFLAGS="$(CFLAGS)"  -C $^ $@
+
+$(CLIENT_DLIB): $(CLIENT_DIR)
+	$(MAKE) CFLAGS="$(CFLAGS)"  -C $^ $@
+
+$(CLIENT_SLIB): $(CLIENT_DIR)
+	$(MAKE) CFLAGS="$(CFLAGS)"  -C $^ $@
+
+$(TARGETDIR)/$(STARGET): $(SOBJS) $(SERVICE_DLIB) $(SERVER_DLIB)
+	$(CC) $(SOBJS) -o $@ -L$(SERVER_DIR) -l$(SERVER_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET)
+
+$(TARGETDIR)/$(CTARGET): $(COBJS) $(SERVICE_DLIB) $(CLIENT_DLIB)
+	$(CC) $(COBJS) -o $@ -L$(CLIENT_DIR) -l$(CLIENT_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET)
+
+server: $(TARGETDIR)/$(STARGET)
+
+client: $(TARGETDIR)/$(CTARGET)
+
+static: $(OBJS) $(SERVICE_SLIB) $(SERVER_SLIB)
+	$(CC) $(OBJS) $(SERVICE_SLIB) $(SERVER_DIR)/$(SERVER_SLIB) -o $(TARGET)_static
+
+clean: clean_service clean_objs
+	$(RM) $(STARGET) $(STARGET)_static
+	$(RM) $(CTARGET) $(CTARGET)_static
+
+clean_objs:
+	$(RM) $(SOBJS) $(COBJS) $(SERVICE_OBJS)
+
+clean_service:
+	$(RM) $(SERVICE_DLIB) $(SERVICE_SLIB)
+
+.PHONY: server client static clean clean_server clean_client

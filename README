@@ -1,0 +1,12 @@
+This project beguns as a  simple server generator for a simple httpd and after for network server on embedded system.
+I used for many projects in the past.
+
+Now I release it for the google-tv remote.
+
+To build the google-tv remote server go to google-tv and build the application with make.
+
+To create a new server, copy the test directory and modify the "service" that you want to implement.
+Only two functions are necessary "myservice_new" and "myservice_main":
+ - myservice_new initializes the service with the port to open, the type of socket (STREAM or DGRAM) and others.
+ - myservice_main is running for each access from a client, it reads from and answers to the client.
+You can find many example in this directory.

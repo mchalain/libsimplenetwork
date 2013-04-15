@@ -1,0 +1,64 @@
+OBJDIR?=../obj
+TARGETDIR?=$(PWD)/$(ARCH)bin
+INCLUDEDIR?=$(NETWORKLIBPATH)/include
+PREFIX?=/usr
+CONFDIR?=/etc
+SHAREDIR?=$(PREFIX)/share/$(TARGET)
+#LDFLAGS= -lefence -lpthread
+CFLAGS+=-DTARGET=\"$(TARGET)\" -DPREFIX=\"$(PREFIX)\" -DCONFDIR=\"$(CONFDIR)\" -DSHAREDIR=\"$(SHAREDIR)\"
+
+SERVICE_DIR?=$(NETWORKLIBPATH)/lib
+SERVICE_SLIB=lib$(SERVICE_TARGET).a
+SERVICE_DLIB=lib$(SERVICE_TARGET).so
+
+SERVER_DIR?=$(NETWORKLIBPATH)/lib
+SERVER_TARGET=server
+SERVER_SLIB=lib$(SERVER_TARGET).a
+SERVER_DLIB=lib$(SERVER_TARGET).so
+
+ifneq ($(origin ARCH), undefined)
+	SERVER_DIR:=$(NETWORKLIBPATH)/$(ARCH)lib
+	CLIENT_DIR=$(NETWORKLIBPATH)/$(ARCH)lib
+endif
+
+SERVICE_SLIB:=$(OBJDIR)/$(SERVICE_SLIB)
+SERVICE_DLIB:=$(SERVICE_DIR)/$(SERVICE_DLIB)
+
+SERVER_SLIB:=$(OBJDIR)/$(SERVER_SLIB)
+SERVER_DLIB:=$(SERVER_DIR)/$(SERVER_DLIB)
+
+OBJS:=$(addprefix $(OBJDIR)/, $(patsubst  %.c,%.o, $(SRCS)))
+SERVICE_OBJS:=$(addprefix $(OBJDIR)/, $(patsubst  %.c,%.o, $(SERVICE_SRCS)))
+
+all: $(TARGETDIR)/$(TARGET)
+
+$(OBJS): |$(OBJDIR) $(TARGETDIR)
+
+$(OBJDIR) $(TARGETDIR):
+	mkdir $@
+
+$(OBJDIR)/%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+$(SERVICE_SLIB): $(SERVICE_OBJS)
+	$(AR) rcs $@ $^
+
+$(SERVICE_DLIB): $(SERVICE_OBJS)
+	$(LD) -shared -fPIC -o $@ $^
+
+$(TARGETDIR)/$(TARGET): $(OBJS) $(SERVICE_DLIB) $(SERVER_DLIB)
+	$(CC) $(OBJS) -o $@ -L$(SERVER_DIR) -l$(SERVER_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET) $(LDFLAGS)
+
+static: CFLAGS+=-DNOT_IN_A_DYNAMIC_LIBRARY
+static: $(OBJS) $(SERVICE_SLIB) $(SERVER_SLIB)
+	$(CC) $(OBJS) $(SERVICE_SLIB) $(SERVER_DIR)/$(SERVER_SLIB) -o $(TARGET)
+
+clean: clean_service clean_objs
+	$(RM) $(TARGETDIR)/$(TARGET)
+
+clean_objs:
+	$(RM) $(OBJS) $(SERVICE_OBJS)
+
+clean_service:
+	$(RM) $(SERVICE_DLIB) $(SERVICE_SLIB)
+
