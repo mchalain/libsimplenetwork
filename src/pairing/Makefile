@@ -1,5 +1,5 @@
 TARGET=pairing
-SRCS=main.c
+SRCS=main_pairing.c
 
 CTARGET=cpairing
 CSRCS=client_main.c
