@@ -43,6 +43,7 @@ $(OBJDIR)/%.o: %.c
 $(SERVICE_SLIB): $(SERVICE_OBJS)
 	$(AR) rcs $@ $^
 
+$(SERVICE_DLIB): CFLAGS+=-fPIC
 $(SERVICE_DLIB): $(SERVICE_OBJS)
 	$(LD) -shared -fPIC -o $@ $^
 

@@ -44,17 +44,18 @@ $(OBJDIR)/%.o: %.c
 $(SERVICE_SLIB): $(SERVICE_OBJS)
 	$(AR) rcs $@ $^
 
+$(SERVICE_DLIB): CFLAGS+=-fPIC
 $(SERVICE_DLIB): $(SERVICE_OBJS)
 	$(LD) -shared -fPIC -o $@ $^
 
 $(TARGETDIR)/$(CTARGET): $(COBJS) $(SERVICE_DLIB) $(CLIENT_DLIB)
-	$(CC) $^ -o $@ -L$(CLIENT_DIR) -l$(CLIENT_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET) $(LDFLAGS)
+	$(LD) $^ -o $@ -L$(CLIENT_DIR) -l$(CLIENT_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET) $(LDFLAGS)
 
 $(TARGETDIR)/$(TARGET): $(OBJS) $(SERVICE_DLIB) $(SERVER_DLIB)
-	$(CC) $^ -o $@ -L$(SERVER_DIR) -l$(SERVER_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET) $(LDFLAGS)
+	$(LD) $^ -o $@ -L$(SERVER_DIR) -l$(SERVER_TARGET)  -L$(SERVICE_DIR) -l$(SERVICE_TARGET) $(LDFLAGS)
 
 static: $(OBJS) $(SERVICE_SLIB) $(SERVER_DIR)/$(SERVER_SLIB)
-	$(CC) $^ -o $(TARGET)
+	$(LD) $^ -o $(TARGET)
 
 clean: clean_objs clean_target clean_service
 
